@@ -1,0 +1,2079 @@
+/* ============================================================================
+   Transformers From Scratch — "FIELD MANUAL"
+
+   The conceit: a 1960s aerospace technical manual, printed on kraft stock in
+   two inks, that happens to be interactive. Everything follows from that.
+
+   Type    Space Grotesk   display + labels. Geometric, tight, technical.
+           Literata        body. Designed by TypeTogether for long-form
+                           screen reading; real italics, not obliques.
+           JetBrains Mono  every shape annotation, every line of code.
+           All self-hosted as variable woff2 in assets/fonts/ — no network,
+           no CDN, identical on every OS. The previous stack (Sitka /
+           Bahnschrift / Cascadia) silently fell back to Georgia off Windows.
+
+   Colour  KRAFT ground, OXBLOOD structure, VIVID categorical hues.
+           The oxblood does the structural work — borders, hard shadows,
+           the topbar, the rules under headings. That is what carries the
+           printed-manual look, so the accent is free to be a link colour.
+             light  #E7D8BC kraft stock, cream cards lifted on hard shadows
+             dark   #14100F near-NEUTRAL deep ground, warm cream ink.
+                    The ground is deliberately almost achromatic (chroma 5)
+                    so the terracotta stamp (chroma 128) and the four
+                    dimension hues can pop off it. The first attempt made
+                    every layer brown — ground, cards, borders and stamp all
+                    within 21 chroma of each other — and the result read as
+                    rusted and faded: the masthead sat at 1.10:1 against the
+                    paper and was effectively invisible. On a dark ground the
+                    saturation has to live in the STRUCTURE, not the field.
+           Surface separation in dark is tuned by L*, not contrast ratio:
+           near black, the +0.05 in the WCAG formula swamps small steps, so
+           a ratio of 1.09 and 1.25 look identical. Cards lift by dL* 8.5,
+           matching the light theme's 9.5.
+           Violet accent is excluded from the four dimension hues so it can
+           never be mistaken for one — colour here encodes WHICH TENSOR AXIS
+           you are looking at, and that meaning is spent nowhere else.
+           Every pair WCAG-checked in both themes (tests/check_ui.js).
+
+   Texture Halftone dot screen over the whole page, 1px dots on a 5px grid.
+           Hard offset shadows, zero blur — ink stamped slightly off
+           register. No soft shadows anywhere; this is a printed object.
+   ========================================================================= */
+
+/* ----------------------------------------------------------------- fonts */
+
+@font-face {
+  font-family: "Space Grotesk"; font-style: normal; font-weight: 400 700;
+  font-display: swap; src: url("fonts/space-grotesk-var.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Literata"; font-style: normal; font-weight: 400 700;
+  font-display: swap; src: url("fonts/literata-var.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Literata"; font-style: italic; font-weight: 400 700;
+  font-display: swap; src: url("fonts/literata-italic-var.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 700;
+  font-display: swap; src: url("fonts/jetbrains-mono-var.woff2") format("woff2");
+}
+
+/* ---------------------------------------------------------------- tokens */
+
+:root {
+  color-scheme: light dark;
+
+  /* -- type stacks ------------------------------------------------------ */
+  --display: "Space Grotesk", "Archivo", Bahnschrift, "Segoe UI", sans-serif;
+  --body:    Literata, "Sitka Text", Constantia, Cambria, Georgia, serif;
+  --label:   "Space Grotesk", Bahnschrift, "Segoe UI", sans-serif;
+  --mono:    "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --math:    "Cambria Math", Cambria, "Latin Modern Math", Georgia, serif;
+
+  /* -- measure & rhythm -------------------------------------------------
+     Prose stays near 70 characters because long lines genuinely hurt
+     reading. Code, tables, figures and widgets BREAK OUT to --wide, which
+     is where the extra screen width actually helps. */
+  --measure: 37rem;   /* fallback outside main; main sets the real one */
+  --margin-col: 13rem;       /* the live margin (a rail only when it fits) */
+  --gutter: 2rem;
+  --wide: calc(var(--measure) + var(--gutter) + var(--margin-col));
+  /* The sheet: as wide as the screen allows (up to 120rem, i.e. no cap on
+     any real monitor). Prose is centred in it at --measure (75% of it);
+     code, tables and widgets use all of it. */
+  --breakout: 120rem;
+  --rule: 1px;               /* hairlines: table rows, dividers */
+  --rule-2: 2px;             /* structure: cards, boxes, buttons */
+  --radius: 3px;             /* barely there — this is print, not glass */
+  --radius-lg: 10px;
+
+  /* -- light theme (default) — kraft stock, oxblood ink ------------------ */
+  --paper: #E7D8BC;     /* kraft — warm, printed, unmistakably not white */
+  --surface: #FFFBF3;   /* cream card stock: lifts off the sheet */
+  --surface-2: #DCCBA9; /* recessed kraft: wells, hovers, table stripes */
+  /* the READING SHEET: solid paper under every line of text. The halftone
+     stays on the kraft desk around it, never under letterforms: dots behind
+     small type were the main reason the light theme was hard to read. In
+     dark the sheet is the ground itself, so dark mode is unchanged except
+     that the dots no longer sit under the text there either. */
+  --sheet: #F8F0E0;
+  --sheet-edge: #5A241F;
+  --sheet-shadow: 9px 9px 0 rgba(90, 36, 31, .22);
+  --ink: #2B1512;       /* near-black oxblood */
+  --ink-2: #563A31;
+  --ink-3: #664436;
+  --ink-4: #7E604F;
+  --line: #C9B492;      /* hairline on kraft */
+  --line-2: #8C5F4B;    /* structural border: warm brown */
+
+  --stamp: #5A241F;         /* THE structural oxblood: topbar, borders, rules */
+  --stamp-ink: #F3E3C6;     /* text on top of the stamp */
+  --dot: rgba(90, 36, 31, .13);   /* halftone screen */
+  --shadow-hue: rgba(90, 36, 31, .20);
+
+  --accent: #6A2E93;    /* violet — links, interaction, progress */
+  --accent-2: #4E1F6E;
+  --accent-bg: #EADCF2;
+
+  /* axis family — SEMANTIC: colour tells you WHICH AXIS (axes.js).
+     Re-stepped in Phase 2 with the dataviz validator, because the Phase 1
+     set failed it: to a deuteranope, feature and head-dim were the SAME grey
+     (OKLab dE 1.7) and batch and head the same olive. Hue families are kept;
+     lightness and chroma moved. Every pair now clears the colour-blind target
+     (dE >= 8 under protan and deutan, all pairs, since all five co-occur in
+     one shape) and the normal-vision floor (dE >= 15), and each colour stays
+     >= 15 from the violet accent and the oxblood stamp. check_ui.js enforces
+     all of it. */
+  --dim-1: #C25D35;     /* orange  — batch    */
+  --dim-2: #1B64DE;     /* blue    — time     */
+  --dim-3: #B815B0;     /* magenta — feature  */
+  --dim-4: #43590F;     /* green   — head     */
+  --dim-5: #08897A;     /* teal    — head dim */
+  --dim-1-bg: #F7E0CE;
+  --dim-2-bg: #DCE4F4;
+  --dim-3-bg: #F4DAE7;
+  --dim-4-bg: #E2EACB;
+  --dim-5-bg: #D7E9E6;
+
+  /* semantic status — separate from accent */
+  --ok: #2F6B22;
+  --warn: #8A5405;
+  --stop: #A82A16;
+  --ok-bg: #DDE8CC;
+  --warn-bg: #F3E2C0;
+  --stop-bg: #F6DCD3;
+
+  /* syntax */
+  --syn-comment: #76584A;
+  --syn-key: #9C1A66;
+  --syn-str: #2F6B22;
+  --syn-num: #A8500A;
+  --syn-fn: #1B4FA8;
+  --syn-builtin: #6A2E93;
+  --syn-shape: #0B6A62;
+
+  /* hard offset shadows — ink stamped slightly off register, never blurred */
+  --shadow: 4px 4px 0 var(--shadow-hue);
+  --shadow-lg: 7px 7px 0 var(--shadow-hue);
+}
+
+/* -- dark theme: OS preference ------------------------------------------
+   Scoped with :not([data-theme]) so the OS preference applies ONLY when the
+   reader has not made an explicit choice. Relying on specificity alone
+   (:root[data-theme="light"] beating :root) is fragile — it silently failed
+   for `background` while working for `color`. This is unambiguous. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --paper: #1A1513;
+    --surface: #342C27;
+    --surface-2: #463B34;
+    --sheet: #27211E;
+    --sheet-edge: #6E5A4C;
+    --sheet-shadow: 9px 9px 0 rgba(0, 0, 0, .45);
+    --ink: #FBF4EA;
+    --ink-2: #EADFCF;
+    --ink-3: #CBBBAA;
+    --ink-4: #A69585;
+    --line: #4E433B;
+    --line-2: #B08A70;
+    --stamp: #B34B33;
+    --stamp-ink: #FFF1E0;
+    --dot: rgba(249, 240, 228, .06);
+    --shadow-hue: rgba(0, 0, 0, .55);
+    --accent: #CBA4FF;
+    --accent-2: #E2CAFF;
+    --accent-bg: #32234E;
+    /* dark axis colours: brighter than the dataviz validator's dark
+       lightness band (0.48-0.67) on purpose. The band is for filled chart
+       marks; these are mostly text glyphs and thin strokes, where the muted
+       in-band set read as murky (the "dull" dark mode already rejected once).
+       Every separation floor still passes: colour-blind dE 15.6, normal 15.7. */
+    --dim-1: #D29E3C;
+    --dim-2: #4AA6FF;
+    --dim-3: #DE68AE;
+    --dim-4: #87E028;
+    --dim-5: #35E1C5;
+    --dim-1-bg: #4A2B12;
+    --dim-2-bg: #1B3159;
+    --dim-3-bg: #4A2135;
+    --dim-4-bg: #2C4117;
+    --dim-5-bg: #10332E;
+    --ok: #8CD46A;
+    --warn: #F5C059;
+    --stop: #FF8E76;
+    --ok-bg: #22461F;
+    --warn-bg: #463514;
+    --stop-bg: #4C231A;
+    --syn-comment: #B09C8B;
+    --syn-key: #FF9AD4;
+    --syn-str: #A8E05F;
+    --syn-num: #F5C059;
+    --syn-fn: #6FB4FF;
+    --syn-builtin: #CBA4FF;
+    --syn-shape: #4FE0C6;
+  }
+}
+
+/* -- explicit toggle must win in BOTH directions ------------------------ */
+:root[data-theme="light"] {
+  --paper: #E7D8BC;
+  --surface: #FFFBF3;
+  --surface-2: #DCCBA9;
+  --sheet: #F8F0E0;
+  --sheet-edge: #5A241F;
+  --sheet-shadow: 9px 9px 0 rgba(90, 36, 31, .22);
+  --ink: #2B1512;
+  --ink-2: #563A31;
+  --ink-3: #664436;
+  --ink-4: #7E604F;
+  --line: #C9B492;
+  --line-2: #8C5F4B;
+  --stamp: #5A241F;
+  --stamp-ink: #F3E3C6;
+  --dot: rgba(90, 36, 31, .13);
+  --shadow-hue: rgba(90, 36, 31, .20);
+  --accent: #6A2E93;
+  --accent-2: #4E1F6E;
+  --accent-bg: #EADCF2;
+  --dim-1: #C25D35;
+  --dim-2: #1B64DE;
+  --dim-3: #B815B0;
+  --dim-4: #43590F;
+  --dim-5: #08897A;
+  --dim-1-bg: #F7E0CE;
+  --dim-2-bg: #DCE4F4;
+  --dim-3-bg: #F4DAE7;
+  --dim-4-bg: #E2EACB;
+  --dim-5-bg: #D7E9E6;
+  --ok: #2F6B22;
+  --warn: #8A5405;
+  --stop: #A82A16;
+  --ok-bg: #DDE8CC;
+  --warn-bg: #F3E2C0;
+  --stop-bg: #F6DCD3;
+  --syn-comment: #76584A;
+  --syn-key: #9C1A66;
+  --syn-str: #2F6B22;
+  --syn-num: #A8500A;
+  --syn-fn: #1B4FA8;
+  --syn-builtin: #6A2E93;
+  --syn-shape: #0B6A62;
+}
+
+:root[data-theme="dark"] {
+  --paper: #1A1513;
+  --surface: #342C27;
+  --surface-2: #463B34;
+  --sheet: #27211E;
+  --sheet-edge: #6E5A4C;
+  --sheet-shadow: 9px 9px 0 rgba(0, 0, 0, .45);
+  --ink: #FBF4EA;
+  --ink-2: #EADFCF;
+  --ink-3: #CBBBAA;
+  --ink-4: #A69585;
+  --line: #4E433B;
+  --line-2: #B08A70;
+  --stamp: #B34B33;
+  --stamp-ink: #FFF1E0;
+  --dot: rgba(249, 240, 228, .06);
+  --shadow-hue: rgba(0, 0, 0, .55);
+  --accent: #CBA4FF;
+  --accent-2: #E2CAFF;
+  --accent-bg: #32234E;
+  --dim-1: #D29E3C;
+  --dim-2: #4AA6FF;
+  --dim-3: #DE68AE;
+  --dim-4: #87E028;
+  --dim-5: #35E1C5;
+  --dim-1-bg: #4A2B12;
+  --dim-2-bg: #1B3159;
+  --dim-3-bg: #4A2135;
+  --dim-4-bg: #2C4117;
+  --dim-5-bg: #10332E;
+  --ok: #8CD46A;
+  --warn: #F5C059;
+  --stop: #FF8E76;
+  --ok-bg: #22461F;
+  --warn-bg: #463514;
+  --stop-bg: #4C231A;
+  --syn-comment: #B09C8B;
+  --syn-key: #FF9AD4;
+  --syn-str: #A8E05F;
+  --syn-num: #F5C059;
+  --syn-fn: #6FB4FF;
+  --syn-builtin: #CBA4FF;
+  --syn-shape: #4FE0C6;
+}
+
+/* ------------------------------------------------------------------ base */
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+  -webkit-text-size-adjust: 100%;
+  background: var(--paper);
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    /* none, not .01ms: with the default transition-property `all`, a tiny
+       duration gave EVERY property on EVERY element a transition, and a
+       harness frozen in virtual time measured layouts half-way through them
+       (tests/check_responsive.js saw a 32px overflow that never existed). */
+    transition: none !important;
+  }
+}
+
+/* The halftone screen. A 1px dot on a 5px grid, laid over the kraft — the
+   single cheapest thing that turns a flat colour into printed stock. Painted
+   on `body` (not a fixed overlay) so it travels with the document. */
+body {
+  margin: 0;
+  overflow-x: clip;            /* belt-and-braces: no sideways page scroll */
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.1px);
+  background-size: 5px 5px;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.68;
+  font-kerning: normal;
+  font-variant-numeric: proportional-nums;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent-bg); color: var(--ink); }
+
+:focus-visible {
+  outline: var(--rule-2) solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+/* --------------------------------------------------------------- topbar */
+/* The masthead. Solid oxblood, like the printed header band on a manual
+   cover — this is the single element that sets the whole tone. */
+
+.topbar {
+  position: sticky; top: 0; z-index: 60;
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: .6rem clamp(1rem, 4vw, 2.5rem);
+  background: var(--stamp);
+  color: var(--stamp-ink);
+  border-bottom: var(--rule-2) solid var(--stamp);
+  box-shadow: 0 3px 0 var(--shadow-hue);
+}
+.topbar .home {
+  font-family: var(--display);
+  font-size: .95rem; font-weight: 700; letter-spacing: -.02em;
+  color: var(--stamp-ink); text-decoration: none; white-space: nowrap;
+  border: 0;
+}
+.topbar .home:hover { color: #fff; border: 0; }
+.topbar .home i {
+  font-style: normal;
+  color: color-mix(in srgb, var(--stamp-ink) 62%, transparent);
+}
+.topbar .crumb {
+  font-family: var(--label);
+  font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--stamp-ink) 70%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border-left: var(--rule) solid color-mix(in srgb, var(--stamp-ink) 28%, transparent);
+  padding-left: 1.25rem;
+}
+.topbar .spacer { flex: 1 1 auto; }
+.topbar .prog {
+  font-family: var(--mono); font-size: .74rem; font-weight: 500; letter-spacing: .02em;
+  color: color-mix(in srgb, var(--stamp-ink) 72%, transparent);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* the two icon buttons in the masthead share one look */
+.theme-toggle, .sb-toggle {
+  display: grid; place-items: center;
+  width: 1.95rem; height: 1.95rem; padding: 0; flex: none;
+  background: none;
+  border: var(--rule) solid color-mix(in srgb, var(--stamp-ink) 34%, transparent);
+  border-radius: var(--radius);
+  color: var(--stamp-ink); cursor: pointer;
+  transition: background .14s, border-color .14s, color .14s;
+}
+.theme-toggle:hover, .sb-toggle:hover {
+  background: color-mix(in srgb, var(--stamp-ink) 16%, transparent);
+  border-color: var(--stamp-ink);
+  color: #fff;
+}
+.theme-toggle svg, .sb-toggle svg { width: 15px; height: 15px; display: block; }
+.theme-toggle .sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .sun,
+.theme-toggle[data-is-dark="1"] .sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .moon,
+.theme-toggle[data-is-dark="1"] .moon { display: none; }
+
+.focus-toggle {
+  padding: .28rem .58rem;
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--stamp-ink); background: transparent;
+  border: var(--rule) solid color-mix(in srgb, var(--stamp-ink) 38%, transparent);
+  border-radius: var(--radius); cursor: pointer;
+}
+.focus-toggle:hover, .focus-toggle[aria-pressed="true"] {
+  color: #fff; border-color: var(--stamp-ink);
+  background: color-mix(in srgb, var(--stamp-ink) 16%, transparent);
+}
+
+/* ------------------------------------------------------------- library */
+/* The course switcher in the masthead, and its panel (course.js Library). */
+
+.lib-toggle {
+  display: inline-flex; align-items: center; gap: .4rem; flex: none;
+  padding: .28rem .58rem .28rem .5rem;
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--stamp-ink); background: transparent;
+  border: var(--rule) solid color-mix(in srgb, var(--stamp-ink) 38%, transparent);
+  border-radius: var(--radius); cursor: pointer;
+}
+.lib-toggle svg { width: 15px; height: 15px; display: block; }
+.lib-toggle:hover, .lib-toggle[aria-expanded="true"] {
+  color: #fff; border-color: var(--stamp-ink);
+  background: color-mix(in srgb, var(--stamp-ink) 16%, transparent);
+}
+
+.library {
+  position: fixed; z-index: 80;
+  width: min(27rem, calc(100vw - 1rem));
+  max-height: calc(100dvh - var(--topbar-h) - 1.5rem); overflow: auto;
+  background: var(--sheet); color: var(--ink);
+  border: var(--rule-2) solid var(--stamp);
+  border-radius: var(--radius);
+  box-shadow: 7px 7px 0 var(--shadow-hue);
+}
+.library[hidden] { display: none; }
+.lib-h {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding: .7rem .9rem .6rem;
+  background: var(--stamp); color: var(--stamp-ink);
+  font-family: var(--label); font-size: .72rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  position: sticky; top: 0;
+}
+.lib-h a { color: var(--stamp-ink); border: 0; text-transform: none; letter-spacing: 0; font-size: .8rem; }
+.lib-h a:hover { color: #fff; }
+.lib-list { display: grid; padding: .45rem; gap: .2rem; }
+.lib-c {
+  display: grid; grid-template-columns: 2.1rem 1fr auto; align-items: center; gap: .1rem .65rem;
+  padding: .5rem .55rem; border-radius: var(--radius);
+  color: var(--ink); text-decoration: none; border: 0;
+}
+a.lib-c:hover, a.lib-c:focus-visible { background: var(--surface); border: 0; }
+.lib-c.here { background: var(--surface); box-shadow: inset 4px 0 0 var(--stamp); }
+.lib-c.off { opacity: .62; }
+.lib-n {
+  display: grid; place-items: center; width: 2.1rem; height: 2.1rem;
+  background: var(--pc); color: var(--part-ink);
+  font-family: var(--display); font-weight: 700; font-size: .95rem;
+  border-radius: 2px; box-shadow: 2px 2px 0 var(--shadow-hue);
+}
+.lib-t { font-family: var(--display); font-weight: 700; font-size: .92rem; line-height: 1.25; }
+.lib-t small {
+  display: block; margin-top: .1rem;
+  font-family: var(--body); font-weight: 400; font-size: .78rem; color: var(--ink-3);
+}
+.lib-m { font-family: var(--mono); font-size: .74rem; color: var(--ink-3); white-space: nowrap; }
+.lib-m span:not(.lib-status) { display: none; }
+.lib-status {
+  font-family: var(--label); font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-3);
+  border: 1px solid currentColor; border-radius: 2px; padding: .05rem .3rem;
+}
+.lib-bar { grid-column: 2 / 4; height: 3px; background: var(--rule-c, color-mix(in srgb, var(--ink) 14%, transparent)); }
+.lib-bar i { display: block; height: 100%; background: var(--pc); }
+.lib-f { padding: .55rem .9rem .8rem; font-size: .8rem; color: var(--ink-3); border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+a.xref.done::after { content: " ¹3"; color: var(--ok, currentColor); }
+
+/* --------------------------------------------------- monograph layout */
+
+/* ---------------------------------------------------------------- sidebar */
+/* Global navigation. Answers "where can I go" AND, via the nested section
+   list, "where am I inside this chapter" — without leaving the page. */
+
+:root { --side: 17rem; --topbar-h: 3.05rem; }
+
+.readbar {
+  position: fixed; top: 0; left: 0; height: 3px; z-index: 70;
+  background: var(--accent); width: 0;
+  transition: width .08s linear;
+}
+
+.sidebar {
+  position: fixed; z-index: 55;
+  top: var(--topbar-h); left: 0; bottom: 0;
+  width: var(--side);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 1.1rem 0 4rem;
+  border-right: var(--rule-2) solid var(--line-2);
+  background: var(--paper);    /* solid: no halftone under navigation text */
+}
+.sidebar::-webkit-scrollbar { width: 7px; }
+
+.sb-search { padding: 0 .85rem 1rem; }
+.sb-search input {
+  width: 100%; padding: .4rem .55rem;
+  font-family: var(--label); font-size: .78rem; font-weight: 500;
+  background: var(--surface); color: var(--ink);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius);
+}
+.sb-search input::placeholder { color: var(--ink-4); }
+.sb-search input:focus-visible { outline-offset: 1px; }
+
+/* ---- parts: one ink per part --------------------------------------------
+   Eight printing-ink tones, one per part of the course, used ONLY in the
+   navigation (sidebar bands, chapter chips, index part headers). They are
+   deliberately earthy and darker than the five tensor-axis hues, which stay
+   reserved for "which axis" inside the chapters. Cream text on every band
+   is >= 4.97:1 in light; near-black text on every band >= 7.5:1 in dark. */
+:root {
+  --part-0: #7D5510; --part-1: #9A3A26; --part-2: #7A2F63; --part-3: #2F5287;
+  --part-4: #2A6345; --part-5: #6E4A1E; --part-6: #4A5A66; --part-7: #5A241F;
+  --part-ink: #F8F0E0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --part-0: #E0B25A; --part-1: #EE8A6E; --part-2: #D98AC4; --part-3: #8DB3EE;
+    --part-4: #7FCC9C; --part-5: #D6A877; --part-6: #A9BAC6; --part-7: #E8A39A;
+    --part-ink: #14100F;
+  }
+}
+:root[data-theme="light"] {
+  --part-0: #7D5510; --part-1: #9A3A26; --part-2: #7A2F63; --part-3: #2F5287;
+  --part-4: #2A6345; --part-5: #6E4A1E; --part-6: #4A5A66; --part-7: #5A241F;
+  --part-ink: #F8F0E0;
+}
+:root[data-theme="dark"] {
+  --part-0: #E0B25A; --part-1: #EE8A6E; --part-2: #D98AC4; --part-3: #8DB3EE;
+  --part-4: #7FCC9C; --part-5: #D6A877; --part-6: #A9BAC6; --part-7: #E8A39A;
+  --part-ink: #14100F;
+}
+[data-pi="0"] { --pc: var(--part-0); } [data-pi="1"] { --pc: var(--part-1); }
+[data-pi="2"] { --pc: var(--part-2); } [data-pi="3"] { --pc: var(--part-3); }
+[data-pi="4"] { --pc: var(--part-4); } [data-pi="5"] { --pc: var(--part-5); }
+[data-pi="6"] { --pc: var(--part-6); } [data-pi="7"] { --pc: var(--part-7); }
+
+/* ---- a part: solid header band (click to fold) + striped chapter list --- */
+.sb-part { margin: 0 .7rem .7rem; }
+.sb-part:not([data-pi]) { --pc: var(--stamp); }   /* must not out-rank [data-pi] */
+.sb-part-h {
+  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: .55rem;
+  width: 100%; padding: .45rem .55rem .45rem .45rem;
+  background: var(--pc); color: var(--part-ink);
+  border: 0; border-radius: var(--radius);
+  box-shadow: 3px 3px 0 var(--shadow-hue);
+  font-family: var(--label); text-align: left; cursor: pointer;
+}
+.sb-part-h:hover { filter: brightness(1.08); }
+.sb-part-h .pn {
+  display: grid; place-items: center; min-width: 1.55rem; height: 1.55rem; padding: 0 .2rem;
+  border: 1.5px solid currentColor; border-radius: 2px;
+  font-family: var(--display); font-size: .95rem; font-weight: 700; line-height: 1;
+}
+.sb-part-h .pt {
+  font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  line-height: 1.25; text-wrap: balance;
+}
+.sb-part-h .pc { font-family: var(--mono); font-size: .7rem; font-weight: 700; opacity: .85; }
+.caret { width: 12px; height: 12px; flex: none; transition: transform .15s ease; }
+[aria-expanded="false"] > .caret { transform: rotate(-90deg); }
+
+.sb-part-body {
+  margin: .35rem 0 0 .2rem;
+  border-left: 3px solid var(--pc);
+}
+.sb-ch {
+  display: grid; grid-template-columns: 2.05rem 1fr; align-items: baseline;
+  padding: .42rem .55rem .42rem .55rem; gap: .2rem;
+  font-size: .88rem; line-height: 1.36;
+  color: var(--ink-2); text-decoration: none;
+  border: 0; border-bottom: 1px solid var(--line);
+}
+.sb-part-body > :last-child, .sb-part-body > :last-child .sb-ch { border-bottom: 0; }
+.sb-ch:hover { background: var(--surface-2); color: var(--ink); border-bottom-color: var(--line); }
+/* chapter number as a chip in the part's ink; filled once the chapter is done */
+.sb-ch .n {
+  justify-self: start; min-width: 1.6rem; padding: .08rem .25rem; text-align: center;
+  font-family: var(--mono); font-size: .72rem; font-weight: 700; line-height: 1.3;
+  color: var(--pc); border: 1.5px solid var(--pc); border-radius: 2px;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.sb-ch.done .n { background: var(--pc); color: var(--part-ink); }
+
+/* numbered in the outline, not written yet: listed but inert, never a link */
+.sb-ch.wip { color: var(--ink-4); cursor: default; }
+.sb-ch.wip:hover { background: none; color: var(--ink-4); }
+.sb-ch.wip .n { border-style: dashed; }
+
+/* ---- the chapter you are in: a raised card, sections fold inside it ---- */
+.sb-ch.here { background: var(--surface); color: var(--ink); font-weight: 650; }
+.sb-here {
+  margin: .3rem .3rem .45rem -.15rem;
+  background: var(--surface);
+  border: var(--rule-2) solid var(--pc); border-radius: var(--radius);
+  box-shadow: 4px 4px 0 var(--shadow-hue);
+}
+.sb-here-row { display: flex; align-items: stretch; }
+.sb-here-row .sb-ch { flex: 1; min-width: 0; border-bottom: 0; }
+.sb-sec-toggle {
+  flex: none; width: 2.4rem; display: grid; place-items: center;
+  background: none; color: var(--pc); cursor: pointer;
+  border: 0; border-left: 1.5px solid var(--line);
+}
+.sb-sec-toggle:hover { background: var(--surface-2); }
+.sb-sec-toggle .vh, .vh {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.sb-sections { border-top: 1.5px dashed var(--line); padding: .3rem 0 .4rem; }
+.sb-sec {
+  display: block; padding: .24rem .6rem .24rem 2.65rem;
+  font-size: .82rem; line-height: 1.38;
+  color: var(--ink-2); text-decoration: none; border: 0;
+  border-left: 3px solid transparent;
+}
+.sb-sec:hover { color: var(--ink); border-bottom: 0; background: var(--surface-2); }
+.sb-sec.active {
+  color: var(--accent); border-left-color: var(--accent); font-weight: 600;
+  background: var(--accent-bg);
+}
+@media (prefers-reduced-motion: reduce) { .caret { transition: none; } }
+
+.scrim { display: none; }
+
+/* wide screens: collapsing slides the sidebar away and widens the content */
+body.side-anim .sidebar { transition: transform .18s ease; }
+body.side-anim .wrap { transition: padding-left .18s ease, max-width .18s ease; }
+body.side-collapsed .sidebar { transform: translateX(-100%); }
+@media (prefers-reduced-motion: reduce) { body.side-anim .sidebar { transition: none; } }
+
+/* The sidebar is fixed, so .wrap only needs to reserve its width with padding.
+   Using padding (not margin-left) keeps `margin-inline: auto` intact, so the
+   content stays CENTRED in the space that remains. Setting margin-left alone
+   leaves margin-right:auto to swallow all leftover width and jams everything
+   against the sidebar. */
+.wrap {
+  max-width: calc(var(--breakout) + 2 * clamp(1rem, 4vw, 2.5rem));
+  margin-inline: auto;
+  padding: 3.5rem clamp(1rem, 4vw, 2.5rem) 8rem;
+  /* no transition by default: the sidebar is added by script after first
+     paint, and animating that made every page load slide into place (and
+     container-relative widths were measured mid-slide). Only a toggle the
+     reader makes animates; see body.side-anim and toggleSidebar(). */
+}
+body.has-side .wrap {
+  max-width: calc(var(--breakout) + var(--side) + 2 * clamp(1rem, 4vw, 2.5rem));
+  padding-left: calc(var(--side) + clamp(1rem, 4vw, 2.5rem));
+}
+body.has-side.side-collapsed .wrap {
+  max-width: calc(var(--breakout) + 2 * clamp(1rem, 4vw, 2.5rem));
+  padding-left: clamp(1rem, 4vw, 2.5rem);
+}
+@media (prefers-reduced-motion: reduce) { body.side-anim .wrap { transition: none; } }
+
+/* --- breakout ----------------------------------------------------------
+   Prose keeps its ~70-character measure because longer lines genuinely hurt
+   reading. Code, tables, figures and widgets have no such limit, so they take
+   the extra width — that is where a big screen actually helps. */
+main > pre,
+main > .tw,
+main > table,
+main > figure,
+main > .panel,
+main > [data-viz],
+main > .study-console,
+main > .home-study,
+main > .exercise,
+main > .quiz,
+main > .example,
+main > .mathblock {
+  max-width: 100%;             /* fill main (breakout-wide), never the viewport */
+}
+
+/* nested content must not inherit the breakout */
+.box pre, .example pre, .exercise pre, .quiz pre,
+.reveal pre, .box .tw, .example .tw, .exercise .tw, .reveal .tw {
+  width: auto;
+  max-width: 100%;
+}
+
+/* THE grid/flex overflow trap: a grid or flex item defaults to
+   `min-width: auto`, which means it refuses to shrink below its content. A
+   wide <pre> inside then pushes the whole page sideways instead of scrolling
+   inside its own box. Every container that can hold a <pre> needs min-width:0. */
+main > *,
+.example, .example .step, .example .step > *,
+.exercise, .exercise > .eb,
+.box, .quiz, .qitem, .opt, .reveal, .reveal > div,
+.grid2, .grid2 > * {
+  min-width: 0;
+}
+
+/* Set before first paint so a collapsed sidebar never flashes open. Replaced
+   by body.side-collapsed once JS runs. */
+:root.pre-collapsed .sidebar { transform: translateX(-100%); transition: none; }
+:root.pre-collapsed body.has-side .wrap {
+  max-width: calc(var(--breakout) + 2 * clamp(1rem, 4vw, 2.5rem));
+  padding-left: clamp(1rem, 4vw, 2.5rem);
+  transition: none;
+}
+
+/* --- below this width the sidebar is an off-canvas drawer, never inline -- */
+@media (max-width: 82rem) {
+  body.has-side .wrap,
+  body.has-side.side-collapsed .wrap {
+    max-width: calc(var(--breakout) + 2 * clamp(1rem, 4vw, 2.5rem));
+    padding-left: clamp(1rem, 4vw, 2.5rem);
+  }
+  .sidebar { transform: translateX(-100%); box-shadow: var(--shadow-lg); }
+  body.side-open .sidebar { transform: none; }
+  body.side-open .scrim {
+    display: block; position: fixed; inset: var(--topbar-h) 0 0 0;
+    background: rgba(43, 21, 18, .45); z-index: 50;
+  }
+}
+/* `main` spans the FULL breakout width; prose is narrowed by the child rule
+   below. Doing it the other way round (main = measure, children widened) fails:
+   `max-width:100%` on a child resolves against main and silently caps it. */
+main {
+  position: relative;          /* anchor for the live margin */
+  width: 100%;
+  max-width: min(var(--breakout), 100%);
+  min-width: 0;
+  isolation: isolate;          /* keeps the sheet below main's own content */
+}
+/* The reading sheet: solid paper under the whole column, margin notes and
+   breakout widgets included, with the oxblood rule and a hard offset shadow
+   so it reads as a printed page laid on the kraft desk. A pseudo-element,
+   not a background on main, so main's box and every width above (and the
+   live margin's `left`) stay exactly as they were.
+   It overhangs into .wrap's side padding by `--sheet-pad`, which is always
+   less than that padding, so it can never widen the page. On a phone it
+   goes full bleed and drops the frame: a 2px border at the screen edge is
+   noise, not structure. */
+main { --sheet-pad: max(.75rem, calc(clamp(1rem, 4vw, 2.5rem) - .85rem)); }
+main::before {
+  content: ""; position: absolute; z-index: -1;
+  inset: -2.4rem calc(-1 * var(--sheet-pad)) -3rem;
+  background: var(--sheet);
+  border: var(--rule-2) solid var(--sheet-edge);
+  border-radius: var(--radius);
+  box-shadow: var(--sheet-shadow);
+  pointer-events: none;
+}
+@media (max-width: 40rem) {
+  main { --sheet-pad: clamp(1rem, 4vw, 2.5rem); }
+  main::before { border-inline: 0; border-radius: 0; box-shadow: none; }
+}
+/* min() is load-bearing: a bare `37rem` is 592px, which overflows any phone.
+   Every width below must be able to shrink to the viewport. */
+main > * { max-width: min(var(--measure), 100%); }
+
+/* LAYOUT OF THE SHEET — three kinds of block, one rule each.
+   Prose: centred, 75% of the space beside the sidebar (the reader asked for
+   exactly that), never narrower than 37rem or the screen, capped at 90rem.
+   main is padded by --ext on BOTH sides, so its content box IS the prose
+   column and anything sized to "100%" lines up with the text.
+     1. Full width  — widgets, figures, panels: drawn to use the space.
+     2. Fit content — code, tables, maths: as wide as what they hold, never
+        narrower than the text column, never wider than the sheet, and
+        centred on the text column. (A 1500px frame round a 700px table,
+        pinned to the sheet's left edge, is what this replaced.)
+     3. Reading boxes — quizzes, exercises, worked examples, the bite
+        console: the text column plus at most 4.5rem a side.
+   tests/shoot.js enforces all three (box-wider-than-content,
+   block-misaligned). Without container units --ext is invalid -> 0 and the
+   page is simply left-aligned; nothing breaks. */
+.wrap { container-type: inline-size; }
+main {
+  /* one body size for everything you read inside main: components scale
+     from it (calc(var(--fs) * k)) instead of fixed rem, so a heading can
+     never end up smaller than the text under it on a wide screen. */
+  --fs: clamp(1.0625rem, .7rem + .75cqw, 1.3125rem);
+  --measure: clamp(min(37rem, 100cqw), 75cqw, 90rem);
+  --M: min(var(--breakout), 100cqw);
+  --ext: max(0px, calc((var(--M) - var(--measure)) / 2));
+  font-size: var(--fs);
+  padding-inline: var(--ext);
+}
+/* 1. full width */
+main > figure,
+main > .panel,
+main > [data-viz] {
+  margin-inline: calc(-1 * var(--ext));
+  max-width: none;
+}
+/* 2. fit content, centred on the text column */
+main > pre,
+main > .tw,
+main > table:not(.x),
+main > .mathblock {
+  position: relative; left: 50%; transform: translateX(-50%);
+  width: fit-content;
+  min-width: 100%;
+  max-width: calc(100% + 2 * var(--ext));
+}
+main > .tw table { width: max-content; min-width: 100%; }
+/* 3. reading boxes */
+main > .study-console,
+main > .home-study,
+main > .exercise,
+main > .quiz,
+main > .example {
+  --k: min(var(--ext), 4.5rem);
+  margin-inline: calc(-1 * var(--k));
+  width: auto;
+  max-width: none;
+}
+
+/* The live margin. Absolutely positioned with NO `top`, so each note keeps its
+   static position — i.e. it lines up with the paragraph it follows. */
+/* Margin notes are INLINE asides: a ruled block in the text column. With
+   the prose at 75% of the page there is no room for a side rail (12.5% a
+   side), so the old absolutely positioned rail is gone. course.js still
+   collision-lays any note that is absolutely positioned, so a rail can come
+   back by adding one rule. */
+.mn {
+  position: static; width: auto;
+  border-left: 3px solid var(--line-2);
+  padding: .05rem 0 .05rem .85rem;
+  margin: 1.2rem 0;
+  font-family: var(--label);
+  font-size: .8rem; line-height: 1.55; font-weight: 500;
+  color: var(--ink-2);
+}
+.mn a { color: var(--accent); border-bottom-color: transparent; }
+.mn a:hover { border-bottom-color: var(--accent); }
+.mn b { font-weight: 700; color: var(--ink-2); }
+.mn .k {
+  display: block; font-size: .73rem; font-weight: 700;
+  letter-spacing: .13em; text-transform: uppercase;
+  color: var(--stamp); margin-bottom: .3rem;
+}
+/* divider between fused sections of one margin note */
+.mn .sep {
+  height: 0; border-top: var(--rule) solid var(--line);
+  margin: .6rem 0 .5rem;
+}
+.mn .k:not(:first-child) { margin-top: .6rem; }
+
+/* The short-session console uses the breakout width and therefore the live
+   margin column. Keep the introductory dependency note in normal flow so it
+   can never cover or intercept the bite controls. */
+main > .mn.study-orient {
+  position: static; left: auto; width: min(var(--measure), 100%);
+  margin: 1rem 0 1.35rem !important;
+}
+
+
+/* ----------------------------------------------------------- typography */
+
+h1 {
+  font-family: var(--display);
+  font-size: clamp(2.1rem, 1.3rem + 2.6vw, 3.35rem);
+  line-height: 1.04; letter-spacing: -.035em; font-weight: 700;
+  text-wrap: balance;
+  margin: 0 0 .6rem;
+}
+/* the chapter number, set as a stamped badge rather than a caption */
+h1 .num {
+  display: block; width: fit-content;   /* its own line, above the title, never beside it */
+  font-family: var(--label);
+  font-size: .74rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--stamp-ink); background: var(--stamp);
+  border-radius: var(--radius);
+  padding: .3rem .6rem .26rem;
+  margin-bottom: 1rem;
+}
+h2 {
+  font-family: var(--display);
+  font-size: calc(var(--fs, 1.0625rem) * 1.5); line-height: 1.2; letter-spacing: -.025em; font-weight: 700;
+  text-wrap: balance;
+  margin: 3.4rem 0 1rem;
+  padding-bottom: .5rem;
+  border-bottom: var(--rule-2) solid var(--line-2);
+}
+h3 {
+  font-family: var(--display);
+  font-size: calc(var(--fs, 1.0625rem) * 1.22); line-height: 1.3; font-weight: 700; letter-spacing: -.015em;
+  text-wrap: balance;
+  margin: 2.3rem 0 .55rem;
+}
+h4 {
+  font-family: var(--label);
+  font-size: .76rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 1.9rem 0 .5rem;
+}
+
+p { margin: 0 0 1.1rem; overflow-wrap: break-word; }
+li, td, th, dd { overflow-wrap: break-word; }
+.lead {
+  font-size: calc(var(--fs, 1.0625rem) * 1.1); line-height: 1.62; color: var(--ink-2);
+  margin-bottom: 1.9rem;
+  text-wrap: pretty;
+}
+.tiny { font-size: .86rem; line-height: 1.55; color: var(--ink-3); }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  transition: border-color .15s, color .15s, background .15s;
+}
+a:hover { color: var(--accent-2); border-bottom-color: var(--accent); }
+
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.3rem; }
+li { margin: .3rem 0; }
+li::marker { color: var(--line-2); }
+li > ul, li > ol { margin: .3rem 0 .4rem; }
+
+hr {
+  border: 0; border-top: var(--rule-2) solid var(--line-2);
+  margin: 2.8rem 0;
+}
+
+/* --------------------------------------------------------------- code */
+
+code {
+  font-family: var(--mono);
+  font-size: max(.84em, 11px); font-weight: 500;   /* never below 11px, even inside a small label */
+  font-variant-numeric: tabular-nums lining-nums;
+  background: var(--surface-2);
+  color: var(--ink);
+  padding: .1em .34em;
+  border-radius: var(--radius);
+}
+
+/* Code blocks are cream cards stamped onto the kraft — the same object as
+   every other card on the page, so the page reads as one printed system. */
+pre {
+  position: relative;
+  background: var(--surface);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.15rem;
+  margin: 0 0 1.6rem;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: calc(var(--fs, 1.0625rem) * 0.76);
+  line-height: 1.62;
+  font-variant-numeric: tabular-nums lining-nums;
+  tab-size: 4;
+}
+pre code {
+  background: none; border: 0; padding: 0;
+  font-size: inherit; color: var(--ink-2);
+}
+
+pre .cm { color: var(--syn-comment); font-style: italic; }
+pre .kw { color: var(--syn-key); font-weight: 600; }
+pre .st { color: var(--syn-str); }
+pre .nu { color: var(--syn-num); }
+pre .fn { color: var(--syn-fn); }
+pre .bi { color: var(--syn-builtin); }
+pre .dc { color: var(--syn-num); }
+pre .sh { color: var(--syn-shape); font-style: normal; font-weight: 700; }
+
+.copy-btn {
+  position: absolute; top: .5rem; right: .5rem;
+  background: var(--paper); border: var(--rule) solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-3);
+  font-family: var(--label); font-size: .7rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  padding: .24rem .5rem; cursor: pointer;
+  opacity: 0; transition: opacity .15s, color .15s, border-color .15s, background .15s;
+}
+pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { color: var(--stamp-ink); background: var(--stamp); border-color: var(--stamp); }
+
+/* ---------------------------------------------------------------- math */
+
+.math { font-family: var(--math); font-style: italic; font-size: 1.05em; }
+.math .op, .math .num { font-style: normal; }
+
+.mathblock {
+  font-family: var(--math);
+  font-size: calc(var(--fs, 1.0625rem) * 1.08);
+  text-align: center;
+  padding: 1.2rem 1.2rem;
+  margin: 1.7rem 0;
+  background: var(--surface);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+.mathblock .lbl {
+  display: block; margin-top: .75rem;
+  font-family: var(--label); font-style: normal; font-weight: 600;
+  font-size: .74rem; letter-spacing: .1em; color: var(--ink-3);
+  text-transform: uppercase;
+}
+.frac { display: inline-block; vertical-align: middle; text-align: center; margin: 0 .22em; }
+.frac .n { display: block; padding: 0 .3em; border-bottom: 1.5px solid currentColor; }
+.frac .d { display: block; padding: 0 .3em; }
+
+/* ------------------------------------------------------------ callouts */
+/* Stamped cards: 2px rule, hard offset shadow, a tab of colour along the top
+   edge and a small uppercase label. Not rounded glass with an accent rail. */
+
+.box {
+  --box-hue: var(--line-2);
+  --box-bg: var(--surface);
+  position: relative;
+  background: var(--box-bg);
+  border: var(--rule-2) solid var(--box-hue);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.15rem .1rem;
+  margin: 1.8rem 0;
+}
+.box > .t {
+  display: inline-block;
+  font-family: var(--label);
+  font-size: .715rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--box-hue);
+  margin-bottom: .65rem;
+}
+.box > :last-child { margin-bottom: 1rem; }
+.box p, .box li { font-size: calc(var(--fs, 1.0625rem) * 0.95); }
+
+.box.intuition { --box-hue: var(--ok);    --box-bg: var(--ok-bg); }
+.box.warn      { --box-hue: var(--warn);  --box-bg: var(--warn-bg); }
+.box.gotcha    { --box-hue: var(--stop);  --box-bg: var(--stop-bg); }
+.box.math-note { --box-hue: var(--dim-2); --box-bg: var(--dim-2-bg); }
+.box.history   { --box-hue: var(--dim-3); --box-bg: var(--dim-3-bg); }
+.box.sota      { --box-hue: var(--dim-1); --box-bg: var(--dim-1-bg); }
+
+/* ------------------------------------------------- shape badges (core) */
+
+.shape {
+  display: inline-flex; align-items: baseline; gap: 0;
+  font-family: var(--mono); font-size: .79em; font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+  background: var(--surface);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: .06em .32em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.shape b { color: var(--dim-2); font-weight: 700; padding: 0 .18em; }
+.shape .x { color: var(--ink-4); font-weight: 400; }
+.shape.q b { color: var(--dim-1); }
+.shape.k b { color: var(--dim-2); }
+.shape.v b { color: var(--dim-3); }
+.shape.o b { color: var(--dim-4); }
+
+.dimkey { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.3rem 0; }
+.dimkey .chip {
+  font-family: var(--mono); font-size: .73rem; font-weight: 500;
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: .26rem .55rem;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.dimkey .chip b:not([data-axis]) { color: var(--dim-2); }   /* an axis letter takes its own axis colour */
+.dimkey .chip span { color: var(--ink-3); font-family: var(--label); }
+
+/* -------------------------------------------------------------- tables */
+
+.tw {
+  overflow-x: auto; margin: 1.7rem 0;
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+.tw table { margin: 0; }
+table {
+  width: 100%; border-collapse: collapse;
+  margin: 1.7rem 0;
+  font-size: calc(var(--fs, 1.0625rem) * 0.88);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+th, td {
+  text-align: left; padding: .55rem .8rem;
+  border-bottom: var(--rule) solid var(--line);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: 0; }
+th {
+  font-family: var(--label);
+  font-size: .72rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--stamp-ink); background: var(--stamp);
+  border-bottom: 0;
+  white-space: nowrap;
+}
+tbody tr:hover { background: var(--surface-2); }
+td code { font-size: .82em; }
+td.num, th.num { text-align: right; font-family: var(--mono); }
+
+/* ------------------------------------------------------------- figures */
+
+figure {
+  margin: 2rem 0;
+  padding: 1.2rem 1rem;
+  background: var(--surface);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+figcaption {
+  font-family: var(--label); font-size: .72rem; line-height: 1.5; font-weight: 500;
+  color: var(--ink-3); text-align: center; margin-top: .9rem;
+}
+
+/* -------------------------------------------------- interactive panels */
+
+.panel {
+  background: var(--surface);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1.15rem 1.2rem;
+  margin: 2rem 0;
+}
+.panel > h4:first-child { margin-top: 0; color: var(--ink-2); }
+.panel .ctl {
+  display: flex; flex-wrap: wrap; gap: .9rem 1.15rem; align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: .9rem;
+  border-bottom: var(--rule-2) solid var(--line);
+}
+.panel .ctl label {
+  display: inline-flex; align-items: center; gap: .45rem;
+  font-family: var(--label); font-size: .73rem; font-weight: 600; letter-spacing: .02em;
+  color: var(--ink-2);
+}
+.panel .ctl output {
+  font-family: var(--mono); font-size: .73rem; font-weight: 700;
+  color: var(--accent); min-width: 2ch;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 7.5rem; height: 3px; background: var(--line-2);
+  border-radius: 2px;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--surface);
+  background: var(--accent); box-shadow: 0 0 0 1.5px var(--accent);
+}
+input[type=checkbox] { accent-color: var(--accent); }
+
+select, input[type=text], input[type=number] {
+  background: var(--surface); color: var(--ink);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: .24rem .45rem;
+  font-family: var(--mono); font-size: .73rem;
+}
+
+/* Buttons are stamped chips: hard shadow that collapses on press, so the
+   button physically presses into the paper. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--label); font-size: .75rem; font-weight: 700; letter-spacing: .04em;
+  background: var(--surface); color: var(--ink);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius);
+  box-shadow: 3px 3px 0 var(--shadow-hue);
+  padding: .42rem .85rem; cursor: pointer; text-decoration: none; line-height: 1.35;
+  transition: background .14s, border-color .14s, color .14s, box-shadow .1s, transform .1s;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-bg);
+}
+.btn:active:not(:disabled) { box-shadow: 0 0 0 var(--shadow-hue); transform: translate(3px, 3px); }
+.btn.primary {
+  background: var(--accent); border-color: var(--accent); color: var(--surface);
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-2); border-color: var(--accent-2); color: var(--surface);
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+
+/* ---------------------------------------------------------------- quiz */
+
+.quiz {
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  background: var(--surface);
+  padding: 1.2rem 1.3rem;
+  margin: 2.2rem 0;
+}
+.quiz > .qt {
+  display: flex; align-items: center; gap: .55rem;
+  font-family: var(--label);
+  font-size: .715rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--stamp-ink); background: var(--stamp);
+  border-radius: var(--radius);
+  padding: .32rem .6rem;
+  margin: -.2rem 0 1.1rem; width: fit-content;
+}
+.qitem { margin-bottom: 1.6rem; }
+.qitem:last-child { margin-bottom: 0; }
+.qitem .qq { font-weight: 700; margin-bottom: .75rem; line-height: 1.5; }
+.opts { display: flex; flex-direction: column; gap: .4rem; }
+
+/* Block flow, NOT flex. An .opt holds running prose, and prose that contains
+   an inline <span> inside a flex container is a trap: flex blockifies every
+   child, so each text run and each <span class="shp"> becomes its own item on
+   a single flex-wrap:nowrap line. The option's min-content width then equals
+   the SUM of all those runs — 346px on a 310px viewport — and the whole page
+   scrolls sideways. The marker is positioned into a hanging indent instead,
+   which looks identical and lets the text actually wrap. */
+.opt {
+  display: block; position: relative;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: .52rem .7rem .52rem 2.5rem;
+  cursor: pointer;
+  font-size: calc(var(--fs, 1.0625rem) * 0.92); line-height: 1.5;
+  transition: border-color .13s, background .13s, transform .13s;
+}
+.opt:hover:not(.disabled) { border-color: var(--line-2); background: var(--surface-2); transform: translateX(2px); }
+.opt .mk {
+  position: absolute; left: .7rem; top: .64rem;
+  width: 1.2rem; height: 1.2rem;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius);
+  font-family: var(--label); font-size: .72rem; font-weight: 700;
+  color: var(--ink-3);
+}
+.opt.correct { border-color: var(--ok); background: var(--ok-bg); }
+.opt.correct .mk { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.opt.wrong { border-color: var(--stop); background: var(--stop-bg); }
+.opt.wrong .mk { background: var(--stop); border-color: var(--stop); color: var(--surface); }
+.opt.disabled { cursor: default; }
+
+.expl {
+  display: none;
+  margin-top: .75rem; padding: .75rem .9rem;
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius);
+  font-size: calc(var(--fs, 1.0625rem) * 0.9); line-height: 1.6; color: var(--ink-2);
+}
+.expl.show { display: block; }
+.expl b { color: var(--ink); }
+
+.quiz-status {
+  margin: -.35rem 0 1rem;
+  font-family: var(--label); font-size: .7rem; font-weight: 600;
+  color: var(--ink-3);
+}
+.quiz-reset {
+  margin-left: .5rem; padding: .08rem .35rem;
+  font: inherit; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--stamp-ink); background: transparent;
+  border: 1px solid color-mix(in srgb, var(--stamp-ink) 45%, transparent);
+  border-radius: var(--radius); cursor: pointer;
+}
+.quiz-reset:hover { border-color: var(--stamp-ink); background: color-mix(in srgb, #fff 12%, transparent); }
+
+/* --------------------------------------------------- short-session layer */
+
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.study-console {
+  margin: 1.4rem 0 2.5rem;
+  background: var(--surface);
+  border: var(--rule-2) solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: 5px 5px 0 var(--shadow-hue);
+  overflow: hidden;
+}
+.study-kicker {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .42rem .8rem;
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--surface); background: var(--accent);
+}
+.study-main {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem 1.5rem; align-items: center;
+  padding: 1rem 1.05rem .65rem;
+}
+.study-copy { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.study-copy strong {
+  font-family: var(--display); font-size: 1.08rem; line-height: 1.25; letter-spacing: -.025em;
+}
+.study-copy span { font-size: .84rem; line-height: 1.45; color: var(--ink-3); }
+.study-actions { display: flex; align-items: center; justify-content: flex-end; gap: .6rem; flex-wrap: wrap; }
+.study-actions label {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-family: var(--label); font-size: .73rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+}
+.study-duration { min-height: 2rem; }
+.study-timer {
+  min-width: 4.4rem; text-align: center;
+  font-family: var(--mono); font-size: 1.05rem; font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums; color: var(--accent);
+}
+.study-timer:empty { display: none; }
+.study-message {
+  padding: 0 1.05rem .9rem;
+  font-size: .78rem; line-height: 1.45; color: var(--ink-3);
+}
+.study-nav {
+  display: grid; grid-template-columns: auto auto minmax(8rem, 1fr) auto auto;
+  gap: .45rem; align-items: center;
+  padding: .65rem 1.05rem;
+  border-top: var(--rule) solid var(--line);
+  background: var(--surface-2);
+}
+.study-nav button, .bite-footer button {
+  padding: .34rem .55rem; cursor: pointer; white-space: nowrap;
+  font-family: var(--label); font-size: .725rem; font-weight: 700;
+  color: var(--ink-2); background: var(--surface);
+  border: 1.5px solid var(--line-2); border-radius: var(--radius);
+}
+.study-nav button:hover:not(:disabled), .bite-footer button:hover:not(:disabled) {
+  color: var(--accent); border-color: var(--accent); background: var(--accent-bg);
+}
+.study-nav button:disabled, .bite-footer button:disabled { opacity: .38; cursor: default; }
+.study-position {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: center; font-family: var(--label); font-size: .7rem; font-weight: 700;
+  color: var(--ink-3);
+}
+.study-map { border-top: var(--rule) solid var(--line); }
+.study-map > summary {
+  padding: .55rem 1.05rem; cursor: pointer; list-style: none;
+  font-family: var(--label); font-size: .7rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--accent);
+}
+.study-map > summary::-webkit-details-marker { display: none; }
+.study-map > summary::before { content: "+"; display: inline-block; width: 1rem; color: var(--ink-4); }
+.study-map[open] > summary::before { content: "−"; }
+.study-steps {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .45rem; padding: 0 1.05rem 1rem;
+}
+.study-step {
+  display: grid; grid-template-columns: 1.55rem minmax(0, 1fr) auto;
+  gap: .45rem; align-items: center; width: 100%; min-width: 0;
+  padding: .48rem .55rem; text-align: left; cursor: pointer;
+  color: var(--ink-2); background: var(--paper);
+  border: 1.5px solid var(--line); border-radius: var(--radius);
+}
+.study-step:hover { border-color: var(--accent); background: var(--accent-bg); }
+.study-step-mark {
+  display: grid; place-items: center; width: 1.35rem; height: 1.35rem;
+  font-family: var(--mono); font-size: .71rem; font-weight: 700;
+  border: 1.5px solid var(--line-2); border-radius: 50%; color: var(--ink-3);
+}
+.study-step-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--label); font-size: .74rem; font-weight: 600;
+}
+.study-step-time { font-family: var(--mono); font-size: .71rem; color: var(--ink-4); white-space: nowrap; }
+.study-step.is-done { border-color: var(--ok); background: var(--ok-bg); }
+.study-step.is-active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.study-step.is-done .study-step-mark { color: var(--surface); background: var(--ok); border-color: var(--ok); font-size: 0; }
+.study-step.is-done .study-step-mark::after { content: "✓"; font-size: .7rem; }
+
+.section-tools {
+  display: flex; align-items: center; justify-content: flex-end; gap: .45rem; flex-wrap: wrap;
+  margin: -1.1rem 0 1.2rem; color: var(--ink-4);
+  font-family: var(--label); font-size: .73rem; font-weight: 600;
+}
+.section-tools button, .ex-check {
+  padding: .25rem .48rem; cursor: pointer;
+  font-family: var(--label); font-size: .72rem; font-weight: 700; letter-spacing: .03em;
+  color: var(--ink-3); background: var(--surface);
+  border: 1.5px solid var(--line-2); border-radius: var(--radius);
+}
+.section-tools button:hover, .ex-check:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+.section-tools .is-done, .ex-check.is-done { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
+.ex-check { margin-left: .15rem; white-space: nowrap; }
+.exercise.exercise-done { border-color: var(--ok); }
+.exercise.exercise-done > .eh { background: var(--ok-bg); }
+
+.bite-footer {
+  display: none;
+  align-items: center; justify-content: flex-end; gap: .5rem; flex-wrap: wrap;
+  margin: 2.5rem 0 .5rem; padding: .8rem .85rem;
+  border-top: var(--rule-2) solid var(--line-2);
+  border-bottom: var(--rule-2) solid var(--line-2);
+  background: var(--surface-2);
+}
+.bite-footer > span {
+  margin-right: auto;
+  font-family: var(--label); font-size: .73rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+}
+
+.home-study {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: .75rem 1rem; align-items: center;
+  margin: -1.7rem 0 3rem; padding: .9rem 1rem;
+  background: var(--surface); border: var(--rule-2) solid var(--accent);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+}
+.home-study-mark {
+  font-family: var(--label); font-size: .7rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--surface);
+  background: var(--accent); border-radius: var(--radius); padding: .25rem .45rem;
+}
+.home-study-copy { display: flex; flex-direction: column; min-width: 0; }
+.home-study-copy strong { font-family: var(--display); font-size: 1rem; line-height: 1.3; }
+.home-study-copy span { font-size: .82rem; color: var(--ink-3); }
+.home-study-copy small { font-family: var(--mono); font-size: .71rem; color: var(--ink-4); margin-top: .15rem; }
+
+body.focus-mode .sidebar { transform: translateX(-100%); }
+body.focus-mode.has-side .wrap {
+  max-width: calc(var(--breakout) + 2 * clamp(1rem, 4vw, 2.5rem));
+  padding-left: clamp(1rem, 4vw, 2.5rem);
+}
+body.focus-mode .scrim { display: none !important; }
+body.focus-mode main > .focus-hidden { display: none !important; }
+body.focus-mode .study-console {
+  position: relative; top: auto; z-index: auto;
+  margin-bottom: 2rem; box-shadow: 4px 4px 0 var(--shadow-hue);
+}
+body.focus-mode .study-map { display: none; }
+body.focus-mode .bite-footer { display: flex; }
+body.focus-mode main > .mn {
+  position: static; width: auto; margin: 1rem 0 !important;
+}
+
+@media (max-width: 44rem) {
+  .study-main { grid-template-columns: 1fr; }
+  .study-actions { justify-content: flex-start; }
+  .study-nav { grid-template-columns: 1fr 1fr; }
+  .study-position { grid-column: 1 / -1; grid-row: 1; text-align: left; white-space: normal; }
+  .study-steps { grid-template-columns: 1fr; }
+  .bite-footer { justify-content: stretch; }
+  .bite-footer > span { width: 100%; margin-right: 0; }
+  .bite-footer button { flex: 1 1 8rem; }
+  .home-study { grid-template-columns: auto minmax(0, 1fr); }
+  .home-study .btn { grid-column: 1 / -1; }
+  .topbar .prog span { display: none; }
+}
+
+/* -------------------------------------------------------------- reveal */
+
+details.reveal {
+  border: var(--rule-2) dashed var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  margin: 1.3rem 0;
+}
+details.reveal[open] { border-style: solid; box-shadow: var(--shadow); }
+details.reveal > summary {
+  cursor: pointer; list-style: none;
+  padding: .62rem .9rem;
+  font-family: var(--label); font-size: .78rem; font-weight: 700;
+  color: var(--accent);
+  user-select: none;
+}
+details.reveal > summary::-webkit-details-marker { display: none; }
+details.reveal > summary::before { content: "+"; margin-right: .5rem; color: var(--ink-4); font-weight: 700; }
+details.reveal[open] > summary::before { content: "\2212"; }
+details.reveal > summary:hover { color: var(--accent-2); }
+details.reveal > div {
+  padding: .9rem .9rem .1rem;
+  border-top: var(--rule) solid var(--line);
+}
+details.reveal > div > :last-child { margin-bottom: .9rem; }
+
+/* ------------------------------------------------------------ exercise */
+
+.exercise {
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  background: var(--surface);
+  margin: 2.2rem 0;
+  overflow: hidden;              /* keep the header inside the rounded corner */
+}
+.exercise > .eh {
+  display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap;
+  padding: .65rem .95rem;
+  background: var(--surface-2);
+  border-bottom: var(--rule-2) solid var(--line-2);
+}
+.exercise > .eh .n {
+  font-family: var(--mono); font-size: .74rem; font-weight: 700;
+  color: var(--surface); background: var(--dim-3);
+  border-radius: var(--radius);
+  padding: .12rem .42rem;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.exercise > .eh .ti { font-family: var(--display); font-weight: 700; font-size: 1rem; letter-spacing: -.02em; }
+.exercise > .eh .lvl {
+  margin-left: auto;
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .13em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.exercise > .eb { padding: .95rem .95rem .1rem; }
+.exercise > .eb > :last-child { margin-bottom: .95rem; }
+
+/* ------------------------------------------------------- worked example */
+
+.example {
+  border: var(--rule-2) solid var(--dim-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+  padding: 1rem 1.1rem .1rem;
+  margin: 1.8rem 0;
+}
+.example > .t {
+  display: inline-block;
+  font-family: var(--label); font-size: .715rem; font-weight: 700;
+  letter-spacing: .15em; text-transform: uppercase;
+  color: var(--dim-2); margin-bottom: .6rem;
+}
+.example > :last-child { margin-bottom: .95rem; }
+.example .step {
+  display: grid; grid-template-columns: 1.5rem 1fr; gap: .1rem .6rem;
+  margin-bottom: .6rem; align-items: start;
+}
+.example .step > .i {
+  font-family: var(--mono); font-size: .74rem; font-weight: 700;
+  color: var(--dim-2); padding-top: .2rem;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.example .step > div:last-child > :last-child { margin-bottom: 0; }
+
+/* ----------------------------------------------------- chapter nav/foot */
+
+.done-row {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  margin-top: 3.2rem; padding: 1rem 1.1rem;
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+.done-row .lbl { flex: 1 1 12rem; font-size: .9rem; color: var(--ink-2); }
+
+.chapnav {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  margin-top: 1.8rem; padding-top: 1.8rem;
+  border-top: var(--rule-2) solid var(--line-2);
+}
+.chapnav a {
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+  padding: .85rem 1rem;
+  text-decoration: none; color: var(--ink);
+  transition: border-color .14s, background .14s, box-shadow .1s, transform .1s;
+}
+.chapnav a:hover {
+  border-color: var(--accent); background: var(--accent-bg);
+  box-shadow: 1px 1px 0 var(--shadow-hue); transform: translate(3px, 3px);
+}
+.chapnav a .d {
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.chapnav a .t {
+  font-family: var(--display); font-weight: 700; font-size: .95rem; line-height: 1.3;
+  letter-spacing: -.02em;
+  margin-top: .25rem; text-wrap: balance;
+}
+.chapnav a.next { text-align: right; }
+@media (max-width: 34rem) {
+  .chapnav { grid-template-columns: 1fr; }
+  .chapnav a.next { text-align: left; }
+}
+
+/* ----------------------------------------------------------- home page */
+/* The cover. A starburst behind the title does the atomic-age work — it is
+   one radial-gradient conic trick, no image asset. */
+
+.hero {
+  position: relative;
+  margin-bottom: 3.2rem;
+}
+.hero::before {
+  content: ""; position: absolute; z-index: -1;
+  top: -7rem; right: -6rem; width: 26rem; height: 26rem;
+  background: repeating-conic-gradient(
+    from 0deg,
+    var(--dot) 0deg 4deg,
+    transparent 4deg 12deg
+  );
+  border-radius: 50%;
+  -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 78%);
+          mask-image: radial-gradient(closest-side, #000 30%, transparent 78%);
+  pointer-events: none;
+}
+@media (max-width: 66rem) { .hero::before { display: none; } }
+.hero h1 { margin-bottom: .75rem; }
+.hero .lead { max-width: 33rem; }
+
+.stats {
+  display: flex; flex-wrap: wrap; gap: 1rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  border: 0;
+}
+.stats div {
+  flex: 1 1 8rem;
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3);
+  background: var(--surface);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: .8rem .9rem;
+}
+.stats div b {
+  display: block;
+  font-family: var(--display); font-size: 1.85rem; font-weight: 700;
+  color: var(--ink); text-transform: none; letter-spacing: -.035em;
+  font-variant-numeric: lining-nums tabular-nums;
+  margin-bottom: .15rem;
+}
+
+.bar {
+  height: 8px; background: var(--surface-2);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: 999px;
+  margin-top: 1.6rem; overflow: hidden;
+}
+.bar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .5s ease; }
+
+.parts { display: flex; flex-direction: column; gap: 2.6rem; margin-top: 2.8rem; }
+.part > .ph {
+  display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap;
+  margin-bottom: 1rem; padding-bottom: .55rem;
+  border-bottom: 3px solid var(--pc, var(--line-2));
+}
+.part > .ph .pn {
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .17em; text-transform: uppercase;
+  color: var(--part-ink); background: var(--pc, var(--stamp));
+  border-radius: var(--radius); padding: .22rem .5rem;
+}
+.part > .ph .pt { font-family: var(--display); font-size: 1.2rem; font-weight: 700; letter-spacing: -.025em; }
+.part > .ph .pd { margin-left: auto; font-family: var(--label); font-size: .7rem; font-weight: 500; color: var(--ink-3); }
+
+.clist { display: flex; flex-direction: column; gap: .5rem; }
+.ccard {
+  display: grid; grid-template-columns: 2.3rem 1fr auto; gap: 0 .9rem;
+  align-items: baseline;
+  padding: .7rem .85rem;
+  background: var(--surface);
+  border: var(--rule-2) solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  text-decoration: none; color: var(--ink);
+  transition: background .13s, border-color .13s, box-shadow .1s, transform .1s;
+}
+.ccard:hover {
+  background: var(--accent-bg); border-color: var(--accent);
+  box-shadow: 1px 1px 0 var(--shadow-hue); transform: translate(3px, 3px);
+}
+.part .ccard { border-left: 7px solid var(--pc, var(--line-2)); }
+.ccard .num {
+  font-family: var(--mono); font-size: .74rem; font-weight: 700;
+  color: var(--pc, var(--ink-4));
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.ccard.done .num { color: var(--accent); }
+.ccard.done .num::after { content: " \00B7"; }
+
+/* placed in the outline, not written yet */
+.ccard.wip {
+  color: var(--ink-4); cursor: default;
+  background: none; box-shadow: none; border-style: dashed;
+}
+.ccard.wip:hover {
+  background: none; border-color: var(--line-2);
+  transform: none; box-shadow: none;
+}
+.ccard.wip .t { font-style: italic; }
+.ccard.wip .tag { font-style: italic; opacity: .8; }
+.ccard .txt { min-width: 0; }
+.ccard .txt .t { font-family: var(--display); font-weight: 700; font-size: .97rem; line-height: 1.35; letter-spacing: -.02em; }
+.ccard .txt .s { font-size: .84rem; line-height: 1.45; color: var(--ink-3); margin-top: .12rem; }
+.ccard .tag {
+  font-family: var(--mono); font-size: .73rem; color: var(--ink-4);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@media (max-width: 30rem) {
+  .ccard { grid-template-columns: 1.9rem 1fr; }
+  .ccard .tag { display: none; }
+}
+
+/* -------------------------------------------------------------- helpers */
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 44rem) { .grid2 { grid-template-columns: 1fr; } }
+.center { text-align: center; }
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-2); border-radius: 999px;
+  border: 3px solid var(--paper);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+
+@media print {
+  .topbar, .sidebar, .readbar, .chapnav, .done-row, .copy-btn,
+  .theme-toggle, .sb-toggle, .scrim, .study-console, .home-study,
+  .section-tools, .ex-check, .bite-footer { display: none !important; }
+  body.focus-mode main > .focus-hidden { display: block !important; }
+  body { background: #fff !important; background-image: none !important; color: #000; }
+  body.has-side .wrap { padding-left: 0; max-width: none; }
+  .wrap { padding: 0; }
+  .box, .panel, .quiz, .exercise, .example, pre, figure, .tw, .ccard, .stats div,
+  .mathblock, .done-row {
+    box-shadow: none !important; break-inside: avoid;
+  }
+  .hero::before { display: none; }
+}
+
+/* ==========================================================================
+   AXIS HIGHLIGHTING — colour encodes WHICH AXIS, not which tensor.
+
+   Why this exists: (B,T,C) and (B,C,T) differ only by POSITION, so the axis
+   identity is the one thing the notation cannot tell you. Colour is the
+   scarce channel and it now buys exactly that. Hover/focus/tap any axis and
+   every other occurrence of the same axis on the page lights up — including
+   inside <pre>, which is where the reshape actually happens.
+
+   NOT COLOUR-ONLY. The whole system is colour-coded, so an active state that
+   were only a hue change would be invisible to a colour-blind reader and in
+   greyscale. Four independent channels move together:
+     1. everything else DIMS to .28 opacity   (luminance)
+     2. the active axis gains a 2px underline (shape)
+     3. it gains a tinted background          (area)
+     4. pinned adds a solid ring              (outline)
+   Cover the hues and the state is still unambiguous.
+
+   Progressive enhancement: axis COLOURS are plain CSS on [data-axis], so with
+   JS disabled every shape still renders correctly coloured — only the
+   interactive highlight is lost. Nothing depends on axes.js to be legible.
+   ====================================================================== */
+
+.shp {
+  /* a transparent inline group, NOT a chip: it has to sit inside <pre>
+     without disturbing monospace alignment, so nothing here may change
+     metrics — no padding, no border, no font-size change. */
+  white-space: nowrap;
+}
+.shp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+b[data-axis] {
+  cursor: pointer;
+  font-weight: 700;
+  border-radius: 2px;
+  transition: opacity .12s ease, background-color .12s ease;
+}
+b[data-axis="batch"]   { color: var(--dim-1); }
+b[data-axis="time"]    { color: var(--dim-2); }
+b[data-axis="feat"]    { color: var(--dim-3); }
+b[data-axis="head"]    { color: var(--dim-4); }
+b[data-axis="headdim"] { color: var(--dim-5); }
+/* vocab has no hue of its own: every remaining gap in hue space sits within
+   45deg of an axis already in use, and a near-miss colour is worse than none.
+   It gets a non-hue treatment instead. */
+b[data-axis="vocab"]   { color: var(--ink-2); border-bottom: 1.5px dotted currentColor; }
+
+/* --- channel 1: when ANY axis is active, everything else recedes --------- */
+:root[data-ax] b[data-axis] { opacity: .28; }
+
+/* --- channels 2 + 3: the active axis comes forward ---------------------- */
+:root[data-ax~="batch"]   b[data-axis="batch"],
+:root[data-ax~="time"]    b[data-axis="time"],
+:root[data-ax~="feat"]    b[data-axis="feat"],
+:root[data-ax~="head"]    b[data-axis="head"],
+:root[data-ax~="headdim"] b[data-axis="headdim"],
+:root[data-ax~="vocab"]   b[data-axis="vocab"] {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* --- channel 4: pinned is a stronger, persistent state ------------------ */
+:root[data-ax-pinned~="batch"]   b[data-axis="batch"],
+:root[data-ax-pinned~="time"]    b[data-axis="time"],
+:root[data-ax-pinned~="feat"]    b[data-axis="feat"],
+:root[data-ax-pinned~="head"]    b[data-axis="head"],
+:root[data-ax-pinned~="headdim"] b[data-axis="headdim"],
+:root[data-ax-pinned~="vocab"]   b[data-axis="vocab"] {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+/* keyboard cursor inside a focused badge */
+b[data-axis].ax-cursor { outline: 2px dashed currentColor; outline-offset: 1px; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  b[data-axis] { transition: none; }
+}
+
+/* ==========================================================================
+   NARROW-SCREEN OVERFLOW FIXES
+
+   At a real 375px viewport the page scrolled sideways — documentElement
+   .scrollWidth was 493px against a 375px client. Two independent causes:
+
+     1. The masthead. `.home` is ~190px and does not shrink, and four controls
+        sit beside it, so the topbar alone set the page width to 493px.
+     2. `.shp { white-space: nowrap }`. Keeping a shape expression on one line
+        is right in prose on a wide screen and wrong on a phone, where a
+        90px badge starting near the right edge forces 460px of page width.
+
+   Neither was caught because check_responsive.js could not actually render
+   below ~504px — headless Chrome on Windows clamps --window-size, so its
+   320 / 390 / 430 rows all silently measured the same 504px viewport. The
+   test now renders each page inside a fixed-width iframe instead, which
+   gives a genuine narrow viewport.
+   ====================================================================== */
+
+@media (max-width: 44rem) {
+  /* a flex item will not shrink below its content without min-width: 0 */
+  .topbar { gap: .6rem; padding-inline: clamp(.6rem, 3vw, 1rem); }
+  .topbar .home { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .crumb { display: none; }   /* the h1 already says which chapter */
+
+  /* on a phone a shape may wrap; overflowing the page is the worse failure */
+  .shp { white-space: normal; }
+
+  /* Inline code in prose must never set the page width. `overflow-wrap:
+     break-word` (already on p/li/td) is not enough for two reasons: the quiz
+     containers .qq and .expl are divs and so never inherited it, and
+     break-word does not reduce an element's MIN-CONTENT contribution, which
+     is what actually pins the page open. `anywhere` does.
+     Reset inside <pre>, where code must keep its lines and scroll instead. */
+  code { overflow-wrap: anywhere; }
+  pre code { overflow-wrap: normal; }
+}
+@media (max-width: 30rem) {
+  .topbar .prog { display: none; }
+}
+
+/* Any table NOT wrapped in .tw must still scroll rather than widen the page.
+   The convention is a .tw wrapper, but four-plus tables across the course sit
+   bare or nested one level deeper, and ch17's overflowed to 492px on a 365px
+   viewport. This is the standard responsive-table pattern: max-content lets
+   columns size naturally, max-width caps it, overflow-x makes it scroll. */
+:not(.tw) > table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* ------------------------------------------------------- touch targets
+   On a touch screen every control is at least 40px tall (Apple and Google
+   ask for 44 to 48; 40 keeps the bite footer on one line at 320px). Found by
+   tests/shoot.js: the bite navigation, section tools, exercise checks and the
+   focus toggle were 22-27px tall on phones. Inline axis badges in running
+   text are exempt, as WCAG 2.5.8 allows for targets inside a sentence. */
+@media (pointer: coarse) {
+  .topbar .home { display: inline-flex; align-items: center; gap: .28em; min-height: 2.5rem; }   /* gap: flex drops the space before <i> */
+  .focus-toggle, .theme-toggle, .menu-btn,
+  .study-nav button, .section-tools button, .ex-check,
+  main .btn, main select,
+  main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+    min-height: 2.5rem;
+  }
+  /* hover never happens on touch, so the copy button must simply be there */
+  main .btn { min-width: 2.5rem; }
+  pre .copy-btn { opacity: 1; min-height: 2rem; }
+  pre:has(> .copy-btn) { padding-top: 2.9rem; }   /* the button sits above the code, not on it */
+}
+
+/* ==========================================================================
+   SHAPE INSPECTOR (Phase 3) — see axes.js for the reasoning.
+   Wide: a right rail that reserves its column (the .wrap gives up the space,
+   so text reflows instead of being covered). Narrow: a bottom sheet.
+   ========================================================================= */
+:root { --dock: 18.5rem; }
+
+.insp-toggle {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .28rem .58rem;
+  font-family: var(--label); font-size: .71rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--stamp-ink); background: transparent;
+  border: var(--rule) solid color-mix(in srgb, var(--stamp-ink) 38%, transparent);
+  border-radius: var(--radius); cursor: pointer;
+}
+.insp-toggle .insp-ico { font-family: var(--mono); letter-spacing: 0; text-transform: none; font-size: .72rem; opacity: .9; }
+.insp-toggle:hover, .insp-toggle[aria-expanded="true"] {
+  color: #fff; border-color: var(--stamp-ink);
+  background: color-mix(in srgb, var(--stamp-ink) 16%, transparent);
+}
+
+.inspector {
+  position: fixed; z-index: 56;
+  top: var(--topbar-h); right: 0; bottom: 0;
+  width: var(--dock);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 1rem .9rem 3rem;
+  background: var(--paper);
+  border-left: var(--rule-2) solid var(--line-2);
+  font-family: var(--label);
+}
+.inspector[hidden] { display: none; }
+@media (min-width: 64rem) {
+  body.insp-open .wrap { padding-right: calc(var(--dock) + clamp(1rem, 4vw, 2.5rem)); }
+}
+
+.insp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; margin-bottom: .8rem; }
+.insp-k {
+  display: inline-block; padding: .2rem .5rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--stamp-ink); background: var(--stamp); border-radius: var(--radius);
+}
+.insp-where { margin-top: .45rem; font-size: .82rem; font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+.insp-close {
+  flex: none; width: 2rem; height: 2rem; display: grid; place-items: center;
+  font-size: 1.25rem; line-height: 1; color: var(--ink-2);
+  background: var(--surface); border: 1.5px solid var(--line-2); border-radius: var(--radius); cursor: pointer;
+}
+.insp-close:hover { color: var(--ink); background: var(--surface-2); }
+
+/* the key: one row per axis. Letter + name carry it in greyscale. */
+.insp-axes { display: flex; flex-direction: column; gap: .35rem; }
+.insp-ax {
+  display: grid; grid-template-columns: 2.2rem 1fr auto; grid-template-rows: auto auto;
+  column-gap: .55rem; align-items: baseline; text-align: left;
+  width: 100%; padding: .45rem .55rem;
+  background: var(--surface); color: var(--ink);
+  border: 1.5px solid var(--line-2); border-left-width: 5px; border-radius: var(--radius);
+  font-family: var(--label); cursor: pointer;
+}
+.insp-ax .sym { grid-row: 1 / 3; align-self: center; font-family: var(--mono); font-size: 1.05rem; font-weight: 800; text-align: center; }
+.insp-ax .nm  { font-size: .86rem; font-weight: 700; }
+.insp-ax .ct  { font-family: var(--mono); font-size: .76rem; font-weight: 700; color: var(--ink-3); }
+.insp-ax .bl  { grid-column: 2 / 4; font-size: .74rem; line-height: 1.35; color: var(--ink-3); }
+.insp-ax[data-axis="batch"]   { border-left-color: var(--dim-1); } .insp-ax[data-axis="batch"]   .sym { color: var(--dim-1); }
+.insp-ax[data-axis="time"]    { border-left-color: var(--dim-2); } .insp-ax[data-axis="time"]    .sym { color: var(--dim-2); }
+.insp-ax[data-axis="feat"]    { border-left-color: var(--dim-3); } .insp-ax[data-axis="feat"]    .sym { color: var(--dim-3); }
+.insp-ax[data-axis="head"]    { border-left-color: var(--dim-4); } .insp-ax[data-axis="head"]    .sym { color: var(--dim-4); }
+.insp-ax[data-axis="headdim"] { border-left-color: var(--dim-5); } .insp-ax[data-axis="headdim"] .sym { color: var(--dim-5); }
+.insp-ax[data-axis="vocab"]   { border-left-style: dotted; border-left-color: var(--ink-3); }
+.insp-ax[data-axis="vocab"] .sym { color: var(--ink-2); text-decoration: underline dotted; }
+.insp-ax.absent { opacity: .62; }
+.insp-ax:hover { background: var(--surface-2); opacity: 1; }
+/* active (hovered or pinned) row: filled; pinned additionally gets a word,
+   so the state reads without colour */
+:root[data-ax~="batch"] .insp-ax[data-axis="batch"], :root[data-ax~="time"] .insp-ax[data-axis="time"],
+:root[data-ax~="feat"] .insp-ax[data-axis="feat"], :root[data-ax~="head"] .insp-ax[data-axis="head"],
+:root[data-ax~="headdim"] .insp-ax[data-axis="headdim"], :root[data-ax~="vocab"] .insp-ax[data-axis="vocab"] {
+  background: var(--surface-2); opacity: 1; border-top-color: var(--ink-2); border-right-color: var(--ink-2); border-bottom-color: var(--ink-2);
+}
+.insp-ax[aria-pressed="true"] { box-shadow: 3px 3px 0 var(--shadow-hue); }
+.insp-ax[aria-pressed="true"] .nm::after {
+  content: "pinned"; margin-left: .45rem; padding: .02rem .3rem;
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--paper); background: var(--ink); border-radius: 2px; vertical-align: .1em;
+}
+
+.insp-sub {
+  margin: 1.2rem 0 .5rem; padding-bottom: .3rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-2);
+  border-bottom: 2px solid var(--line-2);
+}
+.insp-sub span { font-family: var(--mono); letter-spacing: 0; color: var(--ink-3); }
+.insp-shapes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.insp-shapes[hidden] { display: none; }
+.insp-shapes li {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .35rem .4rem .35rem .55rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  font-family: var(--mono); font-size: .86rem;
+}
+.insp-shapes li .shp { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.insp-mult { font-size: .72rem; font-weight: 700; color: var(--ink-3); }
+.insp-jump {
+  flex: none; width: 1.9rem; height: 1.9rem; display: grid; place-items: center;
+  color: var(--accent); background: none; border: 1.5px solid var(--line-2); border-radius: var(--radius); cursor: pointer;
+}
+.insp-jump:hover { background: var(--accent-bg); border-color: var(--accent); }
+.insp-empty { font-family: var(--body); font-size: .9rem; color: var(--ink-3); margin: .3rem 0; }
+.insp-foot { margin-top: 1rem; }
+.insp-clear {
+  width: 100%; padding: .45rem; margin-bottom: .6rem;
+  font-family: var(--label); font-size: .76rem; font-weight: 700;
+  color: var(--ink); background: var(--surface); border: 1.5px solid var(--ink-2); border-radius: var(--radius); cursor: pointer;
+}
+.insp-clear[hidden] { display: none; }
+.insp-clear:hover { background: var(--surface-2); }
+.insp-hint { font-size: .76rem; line-height: 1.45; color: var(--ink-3); margin: 0; }
+
+/* a shape the reader jumped to: a frame, so it reads without colour */
+.shp.insp-flash { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+/* narrow: a bottom sheet over the page; the topbar keeps just the glyph */
+@media (max-width: 63.99rem) {
+  .inspector {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: min(62vh, 34rem);
+    padding: .9rem max(1rem, env(safe-area-inset-right, 0px)) calc(1.4rem + env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+    border-left: 0; border-top: var(--rule-2) solid var(--line-2);
+    box-shadow: 0 -6px 0 var(--shadow-hue);
+  }
+  .insp-axes { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
+}
+@media (max-width: 40rem) { .insp-toggle .insp-lbl { display: none; } }
+@media (pointer: coarse) { .insp-toggle, .insp-jump, .insp-close { min-height: 2.5rem; min-width: 2.5rem; justify-content: center; } }
+@media print { .inspector, .insp-toggle { display: none !important; } }
+
+/* library: the masthead keeps just the glyph on phones; touch-sized on touch */
+@media (max-width: 40rem) { .lib-toggle span { display: none; } .lib-toggle { padding: .28rem .45rem; } }
+@media (pointer: coarse) {
+  .lib-toggle { min-height: 2.5rem; min-width: 2.5rem; justify-content: center; }
+  .lib-c { min-height: 2.75rem; }
+}
+@media print { .library, .lib-toggle { display: none !important; } }

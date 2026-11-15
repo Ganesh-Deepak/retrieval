@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retrieval &amp; Context Engineering</title>
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Get the right information into the context window">
+<script>(function(){try{var t=localStorage.getItem("tfs-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);if(localStorage.getItem("tfs-side")==="collapsed"&&matchMedia("(min-width:82.001rem)").matches)document.documentElement.classList.add("pre-collapsed");}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/style.css?v=1">
+</head>
+<body>
+<main>
+
+<div class="hero">
+  <h1><span class="num">Course 5 &middot; Applied track</span>Retrieval &amp; Context Engineering</h1>
+  <p class="lead">Getting the right information into the context window, and proving you did. You will build sparse, dense and late-interaction retrievers, build ANN indexes from brute force up, measure retrieval separately from generation, and decide with a cost model between retrieval, long context and an agent that searches. The demo that worked and the product that did not differ in exactly these chapters.</p>
+  <div class="stats">
+    <div><b>18</b> chapters</div>
+    <div><b>~22</b> hours</div>
+    <div><b>4</b> parts</div>
+    <div><b>76</b> sections</div>
+  </div>
+  <div class="bar"><i id="pbar"></i></div>
+  <div class="tiny" style="margin-top:.6rem" id="pnote">Progress is saved in this browser.</div>
+</div>
+
+<div class="box warn">
+<span class="t">Status: outline for review</span>
+<p style="margin-bottom:0">Every chapter page exists and shows its planned sections and what you will build, so you can
+read the course's shape before it is written. Prose, figures, quizzes, exercises, notebooks and the reference package
+(<code>retkit</code>) follow, chapter by chapter, to the same standard as
+<a href="/transformers-from-scratch/course/index.html">Transformers From Scratch</a>.</p>
+</div>
+
+<h2>Who this is for</h2>
+<p>Engineers who have built a RAG demo that worked and a RAG product that did not.</p>
+
+<h3>Before you start</h3>
+<ul><li><a class="xref" data-course="transformers" data-ch="04" href="/transformers-from-scratch/course/ch04-embeddings.html">Transformers&nbsp;Ch&nbsp;04</a> &mdash; Embeddings and the Residual Stream</li><li><a class="xref" data-course="transformers" data-ch="09" href="/transformers-from-scratch/course/ch09-architectures.html">Transformers&nbsp;Ch&nbsp;09</a> &mdash; Whole Architectures + End-to-End Shape Trace</li><li><a class="xref" data-course="transformers" data-ch="21" href="/transformers-from-scratch/course/ch21-scaling.html">Transformers&nbsp;Ch&nbsp;21</a> &mdash; Scaling Laws and Long Context</li><li><a class="xref" data-course="evals" data-ch="12" href="/llm-evaluation/course/ch12-rag.html">Evaluation&nbsp;Ch&nbsp;12</a> &mdash; Evaluating Retrieval-Augmented Systems</li></ul>
+
+<h2>By the end you can</h2>
+<ul><li>Build BM25, dense and multi-vector retrievers and know when each wins</li><li>Build IVF-PQ and HNSW indexes and trade recall against latency and memory</li><li>Measure retrieval, grounding and answers separately, with retrieval golden sets</li><li>Choose between retrieval, long context and agentic search with a cost model</li><li>Engineer a context window: ordering, compression and cache-aware layout</li></ul>
+
+<div class="mn"><span class="k">Current to</span>November 2026. Late interaction and multi-vector retrieval (ColBERT, PLAID, ColPali for page images) and the 2025–26 theory of single-vector limits; contextual retrieval and late chunking; LLM rerankers; agentic search, where a model with grep and a search tool beats a fixed pipeline on some corpora; context rot in long-context models; prompt-cache-aware context layout.</div>
+
+<h2>The course</h2>
+<div class="parts" id="parts"></div>
+
+<h2>The capstone</h2>
+<p>A retrieval system over a real corpus that beats a long-context baseline at lower cost: a retrieval golden set, hybrid retrieval with reranking, measured groundedness, and a cost comparison.</p>
+
+<h2>Colour is meaning</h2>
+<p>In this course the five semantic hues mark these roles, never decoration:</p>
+<div class="tw"><table class="hues"><tbody><tr><td><span class="hue" style="background:var(--dim-1)"></span></td><td>the query</td></tr><tr><td><span class="hue" style="background:var(--dim-2)"></span></td><td>the document</td></tr><tr><td><span class="hue" style="background:var(--dim-3)"></span></td><td>the index</td></tr><tr><td><span class="hue" style="background:var(--dim-4)"></span></td><td>the context window</td></tr><tr><td><span class="hue" style="background:var(--dim-5)"></span></td><td>the answer</td></tr></tbody></table></div>
+
+<h2>Deliberately not covered</h2>
+<p>Building a search engine for the open web, and recommender systems.</p>
+
+<div style="margin-top:2.5rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+  <a class="btn primary" href="ch01-problem.html" style="text-decoration:none;border-bottom:0">Read the outline of Chapter 1 &rarr;</a>
+  <a class="btn" href="/" style="text-decoration:none;border-bottom:0">The library</a>
+</div>
+
+</main>
+
+<script src="assets/chapters.js?v=1"></script>
+<script src="assets/course.js?v=1"></script>
+<script>
+(function () {
+  const wrap = document.getElementById("parts");
+  PARTS.forEach((p, pi) => {
+    const d = document.createElement("div");
+    d.className = "part";
+    d.dataset.pi = pi;
+    d.innerHTML =
+      `<div class="ph"><span class="pn">${p.n}</span><span class="pt">${p.t}</span>` +
+      `<span class="pd">${p.d}</span></div><div class="clist">` +
+      p.ch.map(c => `
+        <a class="ccard ${isDone(c.id) ? "done" : ""}" href="${c.f}">
+          <div class="num">${c.id}</div>
+          <div class="txt"><div class="t">${c.t}</div><div class="s">${c.s}</div></div>
+          <div class="tag">${c.tag}</div>
+        </a>`).join("") + `</div>`;
+    wrap.appendChild(d);
+  });
+  const done = CHAPTERS.filter(c => isDone(c.id)).length;
+  document.getElementById("pbar").style.width = (done / CHAPTERS.length * 100) + "%";
+  document.getElementById("pnote").textContent = Store.available()
+    ? `${done} of ${CHAPTERS.length} chapters complete. Progress is saved in this browser, shared with every course in the library.`
+    : "Progress can’t be saved here: browser storage is blocked.";
+  buildLayout(); buildTopbar(null); buildSidebar(null); decorateCode();
+  initReadingBar(); initKeyboard(null); applySidebarPref(); layoutMarginNotes();
+  window.addEventListener("load", layoutMarginNotes);
+  let rt;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { applySidebarPref(); layoutMarginNotes(); }, 100); });
+})();
+</script>
+</body>
+</html>
