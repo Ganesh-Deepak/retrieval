@@ -2071,7 +2071,11 @@ b[data-axis].ax-cursor { outline: 2px dashed currentColor; outline-offset: 1px; 
 @media print { .inspector, .insp-toggle { display: none !important; } }
 
 /* library: the masthead keeps just the glyph on phones; touch-sized on touch */
-@media (max-width: 40rem) { .lib-toggle span { display: none; } .lib-toggle { padding: .28rem .45rem; } }
+@media (max-width: 64rem) { .lib-toggle span { display: none; } .lib-toggle { padding: .28rem .45rem; } }
+@media (max-width: 56rem) { .topbar .crumb { display: none; } }
+/* the course name is the one masthead item that may give way, at any width:
+   the masthead must never be what widens the page (check_responsive, 768px) */
+.topbar .home { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @media (pointer: coarse) {
   .lib-toggle { min-height: 2.5rem; min-width: 2.5rem; justify-content: center; }
   .lib-c { min-height: 2.75rem; }
